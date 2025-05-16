@@ -3,47 +3,60 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const auth = require('../middleware/auth');
 
-// POST /api/auth/register
+const generateAccessToken = (userId) => {
+  return jwt.sign({ user: { id: userId } }, process.env.JWT_SECRET, { expiresIn: '15m' });
+};
+
+const generateRefreshToken = (userId) => {
+  return jwt.sign({ user: { id: userId } }, process.env.JWT_SECRET, { expiresIn: '7d' });
+};
+
+// @route   POST /api/auth/register
+// @desc    Register a new user
+// @access  Public
 router.post('/register', async (req, res) => {
   const { username, email, password } = req.body;
-  try {
-    if (!username || !email || !password) {
-      return res.status(400).json({ msg: 'Please provide email, username, and password' });
-    }
-    if (username.length > 10) {
-      return res.status(400).json({ msg: 'Username must be 10 characters or less' });
-    }
 
-    let user = await User.findOne({ $or: [{ username }, { email }] });
+  try {
+    let user = await User.findOne({ username });
     if (user) {
-      return res.status(400).json({ msg: 'User with this email or username already exists' });
+      return res.status(400).json({ msg: 'User already exists' });
     }
 
     user = new User({ username, email, password });
+
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
+
     await user.save();
 
-    const payload = { user: { id: user.id } };
-    const token = jwt.sign(payload, process.env.JWT_SECRET || 'your_jwt_secret', { expiresIn: '1h' });
-    res.json({ token });
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    console.log('User created:', username);
+    res.json({ token: accessToken });
   } catch (err) {
     console.error('Register error:', err.message);
     res.status(500).json({ msg: 'Server error' });
   }
 });
 
-// POST /api/auth/login
+// @route   POST /api/auth/login
+// @desc    Login user and return JWT token
+// @access  Public
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
-  try {
-    console.log('Login request:', req.body);
-    if (!username || !password) {
-      return res.status(400).json({ msg: 'Please provide username and password' });
-    }
+  console.log('Login request:', { username, password });
 
+  try {
     const user = await User.findOne({ username });
     if (!user) {
       return res.status(400).json({ msg: 'Invalid credentials' });
@@ -54,27 +67,52 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ msg: 'Invalid credentials' });
     }
 
-    const payload = { user: { id: user.id } };
-    const token = jwt.sign(payload, process.env.JWT_SECRET || 'your_jwt_secret', { expiresIn: '1h' });
-    res.json({ token });
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
+
+    console.log('Login: Refresh token stored and set in cookie');
+    res.json({ token: accessToken });
   } catch (err) {
     console.error('Login error:', err.message);
     res.status(500).json({ msg: 'Server error' });
   }
 });
 
-// GET /api/auth/user
-router.get('/user', auth, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select('-password');
-    if (!user) {
-      return res.status(404).json({ msg: 'User not found' });
-    }
-    res.json(user);
-  } catch (err) {
-    console.error('Get user error:', err.message);
-    res.status(500).json({ msg: 'Server error' });
+// @route   POST /api/auth/refresh
+// @desc    Refresh access token using refresh token
+// @access  Public
+router.post('/refresh', async (req, res) => {
+  const refreshToken = req.cookies.refreshToken;
+
+  if (!refreshToken) {
+    return res.status(401).json({ msg: 'No refresh token provided' });
   }
+
+  try {
+    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+    const userId = decoded.user.id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(401).json({ msg: 'User not found' });
+    }
+
+    const newAccessToken = generateAccessToken(user._id);
+    console.log('Refresh: New access token generated for user:', user.username);
+    res.json({ token: newAccessToken });
+  } catch (err) {
+    console.error('Refresh token error:', err.message);
+    res.status(401).json({ msg: 'Invalid refresh token' });
+  }
+
+  
 });
 
 module.exports = router;

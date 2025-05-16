@@ -1,44 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import './Dashboard.css';
+import api from "../api.jsx";
+import "./Dashboard.css";
 
-function Dashboard({ logout }) {
+function Dashboard({ token, logout }) {
   const [lists, setLists] = useState([]);
   const [newListName, setNewListName] = useState('');
   const [newItems, setNewItems] = useState({});
   const [shareData, setShareData] = useState({});
   const [error, setError] = useState('');
-
-  const token = localStorage.getItem('token');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     console.log('Dashboard mounted, token:', token);
     if (!token) {
       console.log('No token, redirecting to /login');
-      window.location.href = '/login';
+      logout();
       return;
     }
     fetchLists();
     return () => console.log('Dashboard unmounted');
-  }, []);
+  }, [token, logout]);
+
+  
 
   const fetchLists = async () => {
+    setIsLoading(true);
     console.log('fetchLists called, token:', token);
     try {
-      const res = await axios.get('http://localhost:3000/api/lists', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api.get('/api/lists');
       console.log('fetchLists success:', res.data);
       setLists(res.data);
       setError('');
     } catch (err) {
-      console.error('Fetch error:', err.response?.data);
-      setError(err.response?.data.msg || 'Failed to fetch lists');
-      if (err.response?.status === 401) {
-        console.log('401 Unauthorized, clearing token');
-        localStorage.removeItem('token');
-        window.location.href = '/login';
-      }
+      console.error('Fetch error:', err.response?.data || err.message);
+      setError(err.response?.data?.msg || 'Failed to fetch lists');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -49,23 +46,14 @@ function Dashboard({ logout }) {
       return;
     }
     try {
-      const res = await axios.post(
-        'http://localhost:3000/api/lists',
-        { name: newListName },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await api.post('/api/lists', { name: newListName });
       console.log('createList success:', res.data);
       setLists([...lists, res.data]);
       setNewListName('');
       setError('');
     } catch (err) {
-      console.error('Create error:', err.response?.data);
-      setError(err.response?.data.msg || 'Failed to create list');
-      if (err.response?.status === 401) {
-        console.log('401 Unauthorized, clearing token');
-        localStorage.removeItem('token');
-        window.location.href = '/login';
-      }
+      console.error('Create error:', err.response?.data || err.message);
+      setError(err.response?.data?.msg || 'Failed to create list');
     }
   };
 
@@ -76,42 +64,26 @@ function Dashboard({ logout }) {
       return;
     }
     try {
-      const res = await axios.put(
-        `http://localhost:3000/api/lists/${listId}/add-item`,
-        { text },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await api.put(`/api/lists/${listId}/add-item`, { text });
       setLists(lists.map((list) => (list._id === listId ? res.data : list)));
       setNewItems((prev) => ({ ...prev, [listId]: '' }));
       setError('');
     } catch (err) {
-      console.error('Add item error:', err.response?.data);
-      setError(err.response?.data.msg || 'Failed to add item');
-      if (err.response?.status === 401) {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
-      }
+      console.error('Add item error:', err.response?.data || err.message);
+      setError(err.response?.data?.msg || 'Failed to add item');
     }
   };
 
   const toggleItem = async (listId, itemId) => {
     console.log('Toggling item:', listId, itemId);
     try {
-      const res = await axios.put(
-        `http://localhost:3000/api/lists/${listId}/toggle-item/${itemId}`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await api.put(`/api/lists/${listId}/toggle-item/${itemId}`, {});
       console.log('Toggle response:', res.data);
       setLists(lists.map((list) => (list._id === listId ? res.data : list)));
       setError('');
     } catch (err) {
-      console.error('Toggle error:', err.response?.data);
-      setError(err.response?.data.msg || 'Failed to toggle item');
-      if (err.response?.status === 401) {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
-      }
+      console.error('Toggle error:', err.response?.data || err.message);
+      setError(err.response?.data?.msg || 'Failed to toggle item');
     }
   };
 
@@ -126,37 +98,39 @@ function Dashboard({ logout }) {
       return;
     }
     try {
-      const res = await axios.put(
-        `http://localhost:3000/api/lists/${listId}/share`,
-        { username, relationship, customRelationship },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const res = await api.put(`/api/lists/${listId}/share`, {
+        username,
+        relationship,
+        customRelationship,
+      });
       setLists(lists.map((list) => (list._id === listId ? res.data : list)));
       setShareData((prev) => ({ ...prev, [listId]: {} }));
       setError('');
       alert('List shared successfully!');
     } catch (err) {
-      console.error('Share error:', err.response?.data);
-      setError(err.response?.data.msg || 'Failed to share list');
-      if (err.response?.status === 401) {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
-      }
+      console.error('Share error:', err.response?.data || err.message);
+      setError(err.response?.data?.msg || 'Failed to share list');
     }
   };
 
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className="dashboard">
-      <h1 style={{ color: '#ff9f1c' }}>ShopSync Dashboard</h1>
+      <h1 style={{ marginBottom: '10px', lineHeight: '1.2', color: 'vibrant blue', position: 'absolute', left: '20px', top: '20px'}}>ShopSync Dashboard</h1>
+     
       <button
         onClick={logout}
-        style={{ background: '#ff4444', color: '#fff', marginBottom: '20px' }}
+        style={{ background: '#ff4444', color: '#fff', marginBottom: '20px' , position: 'absolute', right: '20px', top: '20px', borderRadius: '5px', padding: '10px 20px', border: 'none', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0, 0, 0, 0.2)'}}
       >
         Logout
       </button>
       {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      <form onSubmit={createList} className="new-list-form">
+      
+     
+      <form onSubmit={createList} className="new-list-form" style={{ marginTop: '100px' }}>
         <input
           type="text"
           placeholder="New List Name"

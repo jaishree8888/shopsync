@@ -1,26 +1,53 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
-const mongoose = require('mongoose');
 require('dotenv').config();
 
 const app = express();
 
+// Middleware
 app.use(cors({
-  origin: 'http://localhost:3000', 
-  credentials: true, // Allow cookies
+  origin: 'http://localhost:5173', // Updated to match frontend port
+  credentials: true, // Allow cookies for refresh tokens
 }));
 app.use(express.json());
-app.use(cookieParser()); // Parse cookies
+app.use(cookieParser());
+
+// Routes
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/lists', require('./routes/lists'));
+
+// Global error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Server error:', err.stack);
+  res.status(500).json({ msg: 'Internal server error' });
+});
+
+// 404 handler for unmatched routes
+app.use((req, res) => {
+  console.log('Unmatched route:', req.method, req.url);
+  res.status(404).json({ msg: 'Route not found' });
+});
+
+// Validate environment variables
+if (!process.env.MONGO_URI) {
+  console.error('MONGO_URI is not defined in .env');
+  process.exit(1);
+}
+if (!process.env.JWT_SECRET) {
+  console.error('JWT_SECRET is not defined in .env');
+  process.exit(1);
+}
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected'))
-  .catch((err) => console.error('MongoDB connection error:', err));
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  });
 
-// Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/lists', require('./routes/lists')); // Assumed
-
+// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

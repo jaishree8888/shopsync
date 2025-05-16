@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
-import './Auth.css';
+import api from "../api.jsx";
+import { useNavigate , Link} from 'react-router-dom';
+import "./Auth.css";
 
 function Login({ setToken }) {
   const [username, setUsername] = useState('');
@@ -13,18 +13,21 @@ function Login({ setToken }) {
     e.preventDefault();
     setError('');
     try {
-      const res = await axios.post('http://localhost:3000/api/auth/login', { username, password }, {
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const res = await api.post('/api/auth/login', { username, password });
       const token = res.data.token;
       console.log('Login success, token:', token);
-      localStorage.setItem('token', token);
       setToken(token);
       setError('');
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      console.error('Login error:', err.response?.data);
-      setError(err.response?.data.msg || 'Login failed');
+      console.error('Login error:', err.message, err.response?.data);
+      if (err.response) {
+        setError(err.response.data?.msg || 'Login failed');
+      } else if (err.request) {
+        setError('Network error: Unable to reach the server. Please check your connection.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     }
   };
 
@@ -52,7 +55,7 @@ function Login({ setToken }) {
         {error && <p className="error">{error}</p>}
       </form>
       <p>
-        Need an account? <a href="/register">Register</a>
+        Need an account? <Link to="/register">Register</Link>
       </p>
     </div>
   );
