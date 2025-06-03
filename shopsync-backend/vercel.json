@@ -2,9 +2,16 @@
   "functions": {
     "server.js": {
       "memory": 128,
-      "maxDuration": 10
+      "maxDuration": 10,
+      "includeFiles": ["routes/**", "middleware/**", "models/**"]
     }
   },
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
+    }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/server.js" },
     { "source": "/(.*)", "destination": "/server.js" }
