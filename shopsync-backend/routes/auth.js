@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+
 const generateAccessToken = (userId) => {
   return jwt.sign({ user: { id: userId } }, process.env.JWT_SECRET, { expiresIn: '15m' });
 };
@@ -111,7 +112,9 @@ router.post('/refresh', async (req, res) => {
     console.error('Refresh token error:', err.message);
     res.status(401).json({ msg: 'Invalid refresh token' });
   }
+  
 
+  
   
 });
 

@@ -54,7 +54,7 @@ function Register({ setToken }) {
         </button>
         {error && <p className="error">{error}</p>}
       </form>
-      <p>
+      <p style={{ marginTop: '20px' }}>
         Already have an account? <Link to="/login">Login</Link>
       </p>
     </div>

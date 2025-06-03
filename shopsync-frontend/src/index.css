@@ -6,10 +6,12 @@
 
 body {
   font-family: 'Poppins', sans-serif;
-  background: linear-gradient(135deg, #ff6f61, #6ab04c, #00d4ff);
+  background: linear-gradient(135deg, #6A5ACD, #483D8B);
   background-attachment: fixed;
   min-height: 100vh;
   color: #333;
+  background-image: url(https://www.tasteofhome.com/wp-content/uploads/2023/01/GettyImages-871227828.jpg);
+  background-size: cover;
 }
 
 button {

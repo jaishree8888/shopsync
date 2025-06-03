@@ -9,6 +9,7 @@ function Dashboard({ token, logout }) {
   const [shareData, setShareData] = useState({});
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [username, setUsername] = useState('');
 
   useEffect(() => {
     console.log('Dashboard mounted, token:', token);
@@ -17,11 +18,22 @@ function Dashboard({ token, logout }) {
       logout();
       return;
     }
+    const fetchUser = async () => {
+      try {
+        const res = await api.get('/api/user/me');
+        setUsername(res.data.username);
+        console.log('Fetched username:', res.data.username);
+      } catch (err) {
+        console.error('Fetch user error:', err.response?.data || err.message);
+        setError(err.response?.data?.msg || 'Failed to fetch user data');
+        logout();
+        return;
+      }
+    };
+    fetchUser();
     fetchLists();
     return () => console.log('Dashboard unmounted');
   }, [token, logout]);
-
-  
 
   const fetchLists = async () => {
     setIsLoading(true);
@@ -119,17 +131,18 @@ function Dashboard({ token, logout }) {
 
   return (
     <div className="dashboard">
-      <h1 style={{ marginBottom: '10px', lineHeight: '1.2', color: 'vibrant blue', position: 'absolute', left: '20px', top: '20px'}}>ShopSync Dashboard</h1>
-     
+      <h1 style={{background:'#fff', marginBottom: '10px', lineHeight: '1.2', color: 'black', position: 'absolute', left: '20px', top: '20px', borderRadius:'5px', padding : '5px 5px', border:'none'}}>ShopSync Dashboard</h1>
+      <p className="welcome-message">
+        Welcome, {username}!!
+      </p>
       <button
         onClick={logout}
-        style={{ background: '#ff4444', color: '#fff', marginBottom: '20px' , position: 'absolute', right: '20px', top: '20px', borderRadius: '5px', padding: '10px 20px', border: 'none', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0, 0, 0, 0.2)'}}
+        style={{ background: '#ff4444', color: '#fff', marginBottom: '20px', position: 'absolute', right: '20px', top: '20px', borderRadius: '5px', padding: '10px 20px', border: 'none', cursor: 'pointer', boxShadow: '0 2px 5px rgba(0, 0, 0, 0.2)'}}
       >
         Logout
       </button>
       {error && <p style={{ color: 'red' }}>{error}</p>}
       
-     
       <form onSubmit={createList} className="new-list-form" style={{ marginTop: '100px' }}>
         <input
           type="text"
