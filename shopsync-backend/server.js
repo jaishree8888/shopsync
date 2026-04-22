@@ -7,7 +7,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: 'https://shopsync-fr.vercel.app/login',
+  origin: 'https://shopsync-fr.vercel.app',
   credentials: true,
 }));
 app.use(express.json());
